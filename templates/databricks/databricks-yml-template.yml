@@ -1,0 +1,212 @@
+bundle:
+  name: [PROJECT_NAME]
+  version: 0.1.0
+
+variables:
+  catalog:
+    description: Unity Catalog name
+    default: dev_[PROJECT_NAME]
+  
+  schema:
+    description: Primary schema name
+    default: pipeline
+  
+  workspace_url:
+    description: Databricks workspace URL
+    default: https://[dev-workspace].azuredatabricks.net
+
+workspace:
+  host: ${var.workspace_url}
+  auth_type: pat
+
+resources:
+  jobs:
+    ingest_job:
+      name: "[PROJECT_NAME] - Ingest Data"
+      description: "Load raw data from source systems into Bronze layer"
+      schedule:
+        quartz_cron_expression: "0 0 2 * * ?"  # Daily at 02:00 UTC
+        timezone_id: UTC
+      timeout_seconds: 3600
+      
+      tasks:
+        - task_key: ingest_source_1
+          description: "Ingest [Source 1] data"
+          notebook_task:
+            notebook_path: ./notebooks/ingest_[source_1]
+            base_parameters:
+              catalog: ${var.catalog}
+              schema: ${var.schema}
+          job_cluster_key: pipeline_cluster
+          timeout_seconds: 1800
+          max_retries: 1
+          
+        - task_key: ingest_source_2
+          description: "Ingest [Source 2] data"
+          depends_on:
+            - task_key: ingest_source_1
+          notebook_task:
+            notebook_path: ./notebooks/ingest_[source_2]
+            base_parameters:
+              catalog: ${var.catalog}
+              schema: ${var.schema}
+          job_cluster_key: pipeline_cluster
+          timeout_seconds: 1800
+          max_retries: 1
+      
+      job_clusters:
+        - job_cluster_key: pipeline_cluster
+          new_cluster:
+            spark_version: 14.3.x-scala2.12
+            node_type_id: Standard_DS3_v2
+            num_workers: 1
+            spark_conf:
+              "spark.sql.shuffle.partitions": "8"
+              "spark.databricks.adaptive.skewJoin.enabled": "true"
+            aws_attributes:
+              availability: SPOT
+            init_scripts: []
+
+    transform_job:
+      name: "[PROJECT_NAME] - Transform Data"
+      description: "Apply transformations to create Silver layer (cleaned, deduplicated data)"
+      depends_on:
+        - job_id: ${resources.jobs.ingest_job.id}
+      timeout_seconds: 3600
+      
+      tasks:
+        - task_key: transform_entity_1
+          description: "Transform [Entity 1]"
+          notebook_task:
+            notebook_path: ./notebooks/transform_[entity_1]
+            base_parameters:
+              catalog: ${var.catalog}
+              schema: ${var.schema}
+          job_cluster_key: pipeline_cluster
+          timeout_seconds: 1800
+          max_retries: 1
+          
+        - task_key: transform_entity_2
+          description: "Transform [Entity 2]"
+          depends_on:
+            - task_key: transform_entity_1
+          notebook_task:
+            notebook_path: ./notebooks/transform_[entity_2]
+            base_parameters:
+              catalog: ${var.catalog}
+              schema: ${var.schema}
+          job_cluster_key: pipeline_cluster
+          timeout_seconds: 1800
+          max_retries: 1
+      
+      job_clusters:
+        - job_cluster_key: pipeline_cluster
+          new_cluster:
+            spark_version: 14.3.x-scala2.12
+            node_type_id: Standard_DS3_v2
+            num_workers: 2
+            spark_conf:
+              "spark.sql.shuffle.partitions": "16"
+              "spark.databricks.adaptive.skewJoin.enabled": "true"
+            aws_attributes:
+              availability: SPOT
+
+    output_job:
+      name: "[PROJECT_NAME] - Create Output Tables"
+      description: "Generate Gold layer with business-ready aggregations"
+      depends_on:
+        - job_id: ${resources.jobs.transform_job.id}
+      timeout_seconds: 3600
+      
+      tasks:
+        - task_key: output_metric_1
+          description: "Create [Metric 1] aggregations"
+          notebook_task:
+            notebook_path: ./notebooks/output_[metric_1]
+            base_parameters:
+              catalog: ${var.catalog}
+              schema: ${var.schema}
+          job_cluster_key: pipeline_cluster
+          timeout_seconds: 1800
+          max_retries: 1
+          
+        - task_key: output_metric_2
+          description: "Create [Metric 2] aggregations"
+          depends_on:
+            - task_key: output_metric_1
+          notebook_task:
+            notebook_path: ./notebooks/output_[metric_2]
+            base_parameters:
+              catalog: ${var.catalog}
+              schema: ${var.schema}
+          job_cluster_key: pipeline_cluster
+          timeout_seconds: 1800
+          max_retries: 1
+      
+      job_clusters:
+        - job_cluster_key: pipeline_cluster
+          new_cluster:
+            spark_version: 14.3.x-scala2.12
+            node_type_id: Standard_DS3_v2
+            num_workers: 1
+            spark_conf:
+              "spark.sql.shuffle.partitions": "8"
+            aws_attributes:
+              availability: SPOT
+
+targets:
+  dev:
+    default: true
+    variables:
+      catalog: dev_[PROJECT_NAME]
+      workspace_url: https://[dev-workspace].azuredatabricks.net
+    
+    resources:
+      jobs:
+        ingest_job:
+          name: "[DEV] [PROJECT_NAME] - Ingest Data"
+          schedule:
+            quartz_cron_expression: "0 0 3 * * ?"  # Run at 03:00 UTC in dev
+        
+        transform_job:
+          name: "[DEV] [PROJECT_NAME] - Transform Data"
+        
+        output_job:
+          name: "[DEV] [PROJECT_NAME] - Create Output Tables"
+
+  staging:
+    variables:
+      catalog: staging_[PROJECT_NAME]
+      workspace_url: https://[staging-workspace].azuredatabricks.net
+    
+    resources:
+      jobs:
+        ingest_job:
+          name: "[STAGING] [PROJECT_NAME] - Ingest Data"
+        
+        transform_job:
+          name: "[STAGING] [PROJECT_NAME] - Transform Data"
+        
+        output_job:
+          name: "[STAGING] [PROJECT_NAME] - Create Output Tables"
+
+  prod:
+    variables:
+      catalog: prod_[PROJECT_NAME]
+      workspace_url: https://[prod-workspace].azuredatabricks.net
+    
+    resources:
+      jobs:
+        ingest_job:
+          name: "[PROD] [PROJECT_NAME] - Ingest Data"
+          schedule:
+            quartz_cron_expression: "0 0 2 * * ?"  # Run at 02:00 UTC in prod
+          max_retries: 2  # More retries in production
+        
+        transform_job:
+          name: "[PROD] [PROJECT_NAME] - Transform Data"
+          max_retries: 2
+        
+        output_job:
+          name: "[PROD] [PROJECT_NAME] - Create Output Tables"
+          max_retries: 1

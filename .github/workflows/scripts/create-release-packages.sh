@@ -122,9 +122,11 @@ EOF
 }
 
 build_variant() {
-  local agent=$1 script=$2
-  local base_dir="$GENRELEASES_DIR/sdd-${agent}-package-${script}"
-  echo "Building $agent ($script) package..."
+  local agent=$1 script=$2 mode=${3:-default}
+  local mode_prefix=""
+  [[ "$mode" == "databricks" ]] && mode_prefix="databricks-"
+  local base_dir="$GENRELEASES_DIR/sdd-${mode_prefix}${agent}-package-${script}"
+  echo "Building $agent ($script) package ($mode mode)..."
   mkdir -p "$base_dir"
   
   # Copy base structure but filter scripts by variant
@@ -150,7 +152,23 @@ build_variant() {
     esac
   fi
   
-  [[ -d templates ]] && { mkdir -p "$SPEC_DIR/templates"; find templates -type f -not -path "templates/commands/*" -not -name "vscode-settings.json" -exec cp --parents {} "$SPEC_DIR"/ \; ; echo "Copied templates -> .specify/templates"; }
+  # Copy templates based on mode
+  if [[ -d templates ]]; then
+    mkdir -p "$SPEC_DIR/templates"
+    if [[ "$mode" == "databricks" ]]; then
+      # For databricks mode: only copy databricks folder, stripping the folder name
+      if [[ -d templates/databricks ]]; then
+        find templates/databricks -type f -exec cp --parents {} "$SPEC_DIR"/ \;
+        # Remove the databricks prefix from the path
+        (cd "$SPEC_DIR/templates" && mv databricks/* . 2>/dev/null && rmdir databricks 2>/dev/null || true)
+        echo "Copied databricks templates -> .specify/templates"
+      fi
+    else
+      # For default mode: copy everything except databricks folder
+      find templates -type f -not -path "templates/commands/*" -not -path "templates/databricks/*" -not -name "vscode-settings.json" -exec cp --parents {} "$SPEC_DIR"/ \;
+      echo "Copied templates -> .specify/templates"
+    fi
+  fi
   
   # NOTE: We substitute {ARGS} internally. Outward tokens differ intentionally:
   #   * Markdown/prompt (claude, copilot, cursor-agent, opencode): $ARGUMENTS
@@ -218,8 +236,10 @@ build_variant() {
       mkdir -p "$base_dir/.bob/commands"
       generate_commands bob md "\$ARGUMENTS" "$base_dir/.bob/commands" "$script" ;;
   esac
-  ( cd "$base_dir" && zip -r "../spec-kit-template-${agent}-${script}-${NEW_VERSION}.zip" . )
-  echo "Created $GENRELEASES_DIR/spec-kit-template-${agent}-${script}-${NEW_VERSION}.zip"
+  local mode_prefix=""
+  [[ "$mode" == "databricks" ]] && mode_prefix="databricks-"
+  ( cd "$base_dir" && zip -r "../spec-kit-template-${mode_prefix}${agent}-${script}-${NEW_VERSION}.zip" . )
+  echo "Created $GENRELEASES_DIR/spec-kit-template-${mode_prefix}${agent}-${script}-${NEW_VERSION}.zip"
 }
 
 # Determine agent list
@@ -262,12 +282,14 @@ fi
 echo "Agents: ${AGENT_LIST[*]}"
 echo "Scripts: ${SCRIPT_LIST[*]}"
 
-for agent in "${AGENT_LIST[@]}"; do
-  for script in "${SCRIPT_LIST[@]}"; do
-    build_variant "$agent" "$script"
+# Build all variants (both default and databricks modes)
+for mode in default databricks; do
+  for agent in "${AGENT_LIST[@]}"; do
+    for script in "${SCRIPT_LIST[@]}"; do
+      build_variant "$agent" "$script" "$mode"
+    done
   done
 done
 
 echo "Archives in $GENRELEASES_DIR:"
 ls -1 "$GENRELEASES_DIR"/spec-kit-template-*-"${NEW_VERSION}".zip
-

@@ -1,0 +1,70 @@
+{
+  "python.defaultInterpreterPath": "${workspaceFolder}/.venv/bin/python",
+  "databricks.overrideDatabricksConfigFile": "${workspaceFolder}/.databrickscfg",
+  "python.analysis.extraPaths": [
+    "${workspaceFolder}/src"
+  ],
+  "files.associations": {
+    "*.yml": "yaml",
+    "databricks.yml": "yaml"
+  },
+  "yaml.schemas": {
+    "https://raw.githubusercontent.com/databricks/bundle-examples/main/schema/bundle_config_schema.json": "databricks.yml"
+  },
+  "[python]": {
+    "editor.defaultFormatter": "ms-python.black-formatter",
+    "editor.formatOnSave": true,
+    "editor.codeActionsOnSave": {
+      "source.organizeImports": "explicit"
+    },
+    "editor.rulers": [
+      120
+    ]
+  },
+  "[yaml]": {
+    "editor.tabSize": 2,
+    "editor.insertSpaces": true,
+    "editor.formatOnSave": true
+  },
+  "python.linting.enabled": true,
+  "python.linting.ruffEnabled": true,
+  "python.linting.ruffArgs": [
+    "--line-length=120"
+  ],
+  "python.formatting.provider": "black",
+  "python.formatting.blackArgs": [
+    "--line-length=120"
+  ],
+  "[markdown]": {
+    "editor.wordWrap": "on",
+    "editor.rulers": [
+      120
+    ]
+  },
+  "files.exclude": {
+    "**/__pycache__": true,
+    "**/*.pyc": true,
+    "**/.pytest_cache": true,
+    "**/.mypy_cache": true,
+    "**/.ruff_cache": true,
+    ".databrickscfg": true
+  },
+  "search.exclude": {
+    "**/__pycache__": true,
+    "**/.pytest_cache": true,
+    ".venv": true,
+    "venv": true,
+    "build": true,
+    "dist": true,
+    "*.egg-info": true
+  },
+  "notebook.defaultNotebookType": "jupyter",
+  "extensions.recommendations": [
+    "databricks.databricks",
+    "ms-python.python",
+    "ms-python.vscode-pylance",
+    "ms-python.black-formatter",
+    "charliermarsh.ruff",
+    "redhat.vscode-yaml"
+  ]
+}

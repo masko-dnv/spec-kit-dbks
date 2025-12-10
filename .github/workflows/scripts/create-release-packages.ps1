@@ -204,11 +204,13 @@ agent: $basename
 function Build-Variant {
     param(
         [string]$Agent,
-        [string]$Script
+        [string]$Script,
+        [string]$Mode = "default"
     )
     
-    $baseDir = Join-Path $GenReleasesDir "sdd-${Agent}-package-${Script}"
-    Write-Host "Building $Agent ($Script) package..."
+    $modePrefix = if ($Mode -eq "databricks") { "databricks-" } else { "" }
+    $baseDir = Join-Path $GenReleasesDir "sdd-${modePrefix}${Agent}-package-${Script}"
+    Write-Host "Building $Agent ($Script) package ($Mode mode)..."
     New-Item -ItemType Directory -Path $baseDir -Force | Out-Null
     
     # Copy base structure but filter scripts by variant
@@ -252,10 +254,33 @@ function Build-Variant {
         $templatesDestDir = Join-Path $specDir "templates"
         New-Item -ItemType Directory -Path $templatesDestDir -Force | Out-Null
         
+        # For default mode: copy everything except databricks folder
+        # For databricks mode: copy databricks folder only
+        $filters = if ($Mode -eq "databricks") {
+            @{ Include = "databricks" }
+        } else {
+            @{ Exclude = "databricks" }
+        }
+        
         Get-ChildItem -Path "templates" -Recurse -File | Where-Object {
-            $_.FullName -notmatch 'templates[/\\]commands[/\\]' -and $_.Name -ne 'vscode-settings.json'
+            $path = $_.FullName
+            $isCommandsDir = $path -match 'templates[/\\]commands[/\\]'
+            $isVscodeSettings = $_.Name -eq 'vscode-settings.json'
+            $isDatabricks = $path -match 'templates[/\\]databricks'
+            
+            if ($isCommandsDir -or $isVscodeSettings) { return $false }
+            
+            if ($Mode -eq "databricks") {
+                return $isDatabricks
+            } else {
+                return -not $isDatabricks
+            }
         } | ForEach-Object {
             $relativePath = $_.FullName.Substring((Resolve-Path "templates").Path.Length + 1)
+            # For databricks mode, strip the databricks folder from the path
+            if ($Mode -eq "databricks") {
+                $relativePath = $relativePath -replace '^databricks[/\\]', ''
+            }
             $destFile = Join-Path $templatesDestDir $relativePath
             $destFileDir = Split-Path $destFile -Parent
             New-Item -ItemType Directory -Path $destFileDir -Force | Out-Null
@@ -350,7 +375,8 @@ function Build-Variant {
     }
     
     # Create zip archive
-    $zipFile = Join-Path $GenReleasesDir "spec-kit-template-${Agent}-${Script}-${Version}.zip"
+    $modePrefix = if ($Mode -eq "databricks") { "databricks-" } else { "" }
+    $zipFile = Join-Path $GenReleasesDir "spec-kit-template-${modePrefix}${Agent}-${Script}-${Version}.zip"
     Compress-Archive -Path "$baseDir/*" -DestinationPath $zipFile -Force
     Write-Host "Created $zipFile"
 }
@@ -411,10 +437,12 @@ if (-not [string]::IsNullOrEmpty($Scripts)) {
 Write-Host "Agents: $($AgentList -join ', ')"
 Write-Host "Scripts: $($ScriptList -join ', ')"
 
-# Build all variants
-foreach ($agent in $AgentList) {
-    foreach ($script in $ScriptList) {
-        Build-Variant -Agent $agent -Script $script
+# Build all variants (both default and databricks modes)
+foreach ($mode in @('default', 'databricks')) {
+    foreach ($agent in $AgentList) {
+        foreach ($script in $ScriptList) {
+            Build-Variant -Agent $agent -Script $script -Mode $mode
+        }
     }
 }
 

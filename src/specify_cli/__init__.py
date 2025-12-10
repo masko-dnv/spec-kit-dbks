@@ -634,7 +634,7 @@ def merge_json_files(existing_path: Path, new_content: dict, verbose: bool = Fal
 
     return merged
 
-def download_template_from_github(ai_assistant: str, download_dir: Path, *, script_type: str = "sh", verbose: bool = True, show_progress: bool = True, client: httpx.Client = None, debug: bool = False, github_token: str = None) -> Tuple[Path, dict]:
+def download_template_from_github(ai_assistant: str, download_dir: Path, *, script_type: str = "sh", mode: str = "default", verbose: bool = True, show_progress: bool = True, client: httpx.Client = None, debug: bool = False, github_token: str = None) -> Tuple[Path, dict]:
     repo_owner = "github"
     repo_name = "spec-kit"
     if client is None:
@@ -668,7 +668,9 @@ def download_template_from_github(ai_assistant: str, download_dir: Path, *, scri
         raise typer.Exit(1)
 
     assets = release_data.get("assets", [])
-    pattern = f"spec-kit-template-{ai_assistant}-{script_type}"
+    # Build pattern based on mode: default vs databricks
+    mode_prefix = "databricks-" if mode == "databricks" else ""
+    pattern = f"spec-kit-template-{mode_prefix}{ai_assistant}-{script_type}"
     matching_assets = [
         asset for asset in assets
         if pattern in asset["name"] and asset["name"].endswith(".zip")
@@ -748,9 +750,10 @@ def download_template_from_github(ai_assistant: str, download_dir: Path, *, scri
     }
     return zip_path, metadata
 
-def download_and_extract_template(project_path: Path, ai_assistant: str, script_type: str, is_current_dir: bool = False, *, verbose: bool = True, tracker: StepTracker | None = None, client: httpx.Client = None, debug: bool = False, github_token: str = None) -> Path:
+def download_and_extract_template(project_path: Path, ai_assistant: str, script_type: str, is_current_dir: bool = False, *, mode: str = "default", verbose: bool = True, tracker: StepTracker | None = None, client: httpx.Client = None, debug: bool = False, github_token: str = None) -> Path:
     """Download the latest release and extract it to create a new project.
     Returns project_path. Uses tracker if provided (with keys: fetch, download, extract, cleanup)
+    mode parameter: 'default' for standard templates, 'databricks' for data engineering templates
     """
     current_dir = Path.cwd()
 
@@ -761,6 +764,7 @@ def download_and_extract_template(project_path: Path, ai_assistant: str, script_
             ai_assistant,
             current_dir,
             script_type=script_type,
+            mode=mode,
             verbose=verbose and tracker is None,
             show_progress=(tracker is None),
             client=client,
@@ -947,6 +951,7 @@ def init(
     project_name: str = typer.Argument(None, help="Name for your new project directory (optional if using --here, or use '.' for current directory)"),
     ai_assistant: str = typer.Option(None, "--ai", help="AI assistant to use: claude, gemini, copilot, cursor-agent, qwen, opencode, codex, windsurf, kilocode, auggie, codebuddy, amp, shai, q, bob, or qoder "),
     script_type: str = typer.Option(None, "--script", help="Script type to use: sh or ps"),
+    mode: str = typer.Option("default", "--mode", "-m", help="Project mode: 'default' (web apps) or 'databricks' (data engineering)"),
     ignore_agent_tools: bool = typer.Option(False, "--ignore-agent-tools", help="Skip checks for AI agent tools like Claude Code"),
     no_git: bool = typer.Option(False, "--no-git", help="Skip git repository initialization"),
     here: bool = typer.Option(False, "--here", help="Initialize project in the current directory instead of creating a new one"),
@@ -978,9 +983,17 @@ def init(
         specify init --here --ai codebuddy
         specify init --here
         specify init --here --force  # Skip confirmation when current directory not empty
+        specify init my-pipeline --ai claude --mode databricks
+        specify init my-pipeline --ai claude -m databricks  # Shorthand for Databricks mode
     """
 
     show_banner()
+
+    # Validate mode parameter
+    valid_modes = ["default", "databricks"]
+    if mode not in valid_modes:
+        console.print(f"[red]Error:[/red] Invalid mode '{mode}'. Choose from: {', '.join(valid_modes)}")
+        raise typer.Exit(1)
 
     if project_name == ".":
         here = True
@@ -1029,6 +1042,7 @@ def init(
         "[cyan]Specify Project Setup[/cyan]",
         "",
         f"{'Project':<15} [green]{project_path.name}[/green]",
+        f"{'Mode':<15} [green]{mode}[/green]",
         f"{'Working Path':<15} [dim]{current_dir}[/dim]",
     ]
 
@@ -1124,7 +1138,7 @@ def init(
             local_ssl_context = ssl_context if verify else False
             local_client = httpx.Client(verify=local_ssl_context)
 
-            download_and_extract_template(project_path, selected_ai, selected_script, here, verbose=False, tracker=tracker, client=local_client, debug=debug, github_token=github_token)
+            download_and_extract_template(project_path, selected_ai, selected_script, here, mode=mode, verbose=False, tracker=tracker, client=local_client, debug=debug, github_token=github_token)
 
             ensure_executable_scripts(project_path, tracker=tracker)
 
@@ -1366,4 +1380,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
