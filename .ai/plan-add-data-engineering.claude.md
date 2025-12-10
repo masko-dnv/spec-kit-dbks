@@ -179,43 +179,95 @@ templates/
 
 ### pyproject.toml (uv Dependency Management)
 
-All Databricks projects use **uv** for dependency management. A pre-configured `pyproject.toml` template is included with required dependencies:
+All Databricks projects use **uv** for dependency management. The template separates **production dependencies** (deployed to Databricks) from **dev dependencies** (local development only).
+
+**Key principles:**
+
+- **Production deps**: Only packages needed at runtime in Databricks jobs
+- **Dev deps**: databricks-connect, testing, linting, notebooks (never deployed)
+- **Build system**: hatchling for proper src-layout support
+- **Ruff config**: Databricks globals defined as builtins to avoid F821 errors
 
 ```toml
 [project]
 name = "[PROJECT_NAME]"
 version = "0.1.0"
 description = "Databricks data engineering pipeline"
+readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-    "databricks-connect>=[VERSION]",
+    # Production dependencies only - these run in Databricks
+    # Add your runtime dependencies here (e.g., custom packages)
+]
+
+[dependency-groups]
+dev = [
+    # Databricks Connect - match your cluster runtime version
+    "databricks-connect==[DBR_VERSION].*",
     "databricks-sdk>=[VERSION]",
-    "pyspark>=[VERSION]",
-    "delta-spark>=[VERSION]",
+    # Testing
     "pytest>=[VERSION]",
     "pytest-cov>=[VERSION]",
+    # Notebooks (local development)
+    "jupyter>=[VERSION]",
+    "notebook>=[VERSION]",
+    # Linting & formatting
+    "ruff>=[VERSION]",
+    # Utilities
+    "python-dotenv>=[VERSION]",
 ]
 
-[project.optional-dependencies]
-dev = [
-    "black>=[VERSION]",
-    "ruff>=[VERSION]",
-    "mypy>=[VERSION]",
-]
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/[PACKAGE_NAME]"]
 
 [tool.pytest.ini_options]
+pythonpath = "src"
 testpaths = ["tests"]
-python_files = ["test_*.py"]
-python_functions = ["test_*"]
-
-[tool.black]
-line-length = 88
-target-version = ["py312"]
 
 [tool.ruff]
-line-length = 88
+line-length = 120
 target-version = "py312"
+
+# Databricks globals - prevents F821 (undefined name) errors
+builtins = [
+    "spark",
+    "dbutils",
+    "display",
+    "displayHTML",
+    "sc",
+    "sqlContext",
+    "table",
+    "udf",
+    "getArgument",
+]
+
+exclude = [
+    ".venv",
+    "venv",
+    "build",
+    "dist",
+    "__pycache__",
+    "docs",
+    "resources",
+    "scratch",
+    ".vscode",
+    "*.ipynb",
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Allow unused imports in __init__.py (common for re-exports)
+"src/**/__init__.py" = ["F401"]
 ```
+
+**Notes:**
+
+- `databricks-connect` version must match your Databricks Runtime (e.g., 17.3.* for DBR 17.3 LTS)
+- Production dependencies should be minimal - most processing uses cluster-installed packages
+- Use `[tool.uv.sources]` section for editable local dependencies during development
 
 ### New Template File
 
