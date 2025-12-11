@@ -2,6 +2,13 @@
 # Common PowerShell functions analogous to common.sh
 
 function Get-RepoRoot {
+    # First check if we are running from within a .specify structure
+    # This handles cases where the project is a subdirectory of a git repo
+    $scriptBasedRoot = (Resolve-Path (Join-Path $PSScriptRoot "../../..")).Path
+    if (Test-Path (Join-Path $scriptBasedRoot ".specify")) {
+        return $scriptBasedRoot
+    }
+
     try {
         $result = git rev-parse --show-toplevel 2>$null
         if ($LASTEXITCODE -eq 0) {
@@ -12,7 +19,7 @@ function Get-RepoRoot {
     }
     
     # Fall back to script location for non-git repos
-    return (Resolve-Path (Join-Path $PSScriptRoot "../../..")).Path
+    return $scriptBasedRoot
 }
 
 function Get-CurrentBranch {
@@ -134,4 +141,3 @@ function Test-DirHasFiles {
         return $false
     }
 }
-
