@@ -1,363 +1,256 @@
+---
+description: "Task list template for data pipeline implementation"
+---
+
 # Tasks: [PIPELINE_NAME]
 
-**Project**: [Pipeline Name]  
-**Created**: [Date]  
-**Status**: [Backlog / In Progress / Complete]
+**Input**: Design documents from `/specs/[###-pipeline-name]/`
+**Prerequisites**: plan.md (required), spec.md (required for data requirements), research.md, data-model.md, contracts/
+
+**Tests**: The examples below include test tasks. Tests are OPTIONAL - only include them if explicitly requested in the data specification.
+
+**Organization**: Tasks are grouped by data requirement to enable independent implementation and testing of each pipeline stage.
+
+## Format: `[ID] [P?] [Req] Description`
+
+- **[P]**: Can run in parallel (different files, no dependencies)
+- **[Req]**: Which data requirement this task belongs to (e.g., DR1, DR2, DR3)
+- Include exact file paths in descriptions
+
+## Path Conventions
+
+- **Standard pipeline**: `notebooks/`, `src/`, `tests/` at repository root
+- **Multi-pipeline**: `notebooks/pipeline_a/`, `notebooks/pipeline_b/`
+- **Streaming**: `notebooks/stream_*.py` for streaming, `notebooks/batch_*.py` for batch
+- Paths shown below assume standard pipeline - adjust based on plan.md structure
+
+<!--
+  ============================================================================
+  IMPORTANT: The tasks below are SAMPLE TASKS for illustration purposes only.
+
+  The /speckit.tasks command MUST replace these with actual tasks based on:
+  - Data requirements from spec.md (with their priorities P1, P2, P3...)
+  - Pipeline configuration from plan.md
+  - Entities from data-model.md (Bronze, Silver, Gold layer mappings)
+  - Data contracts from contracts/
+
+  Tasks MUST be organized by data requirement so each requirement can be:
+  - Implemented independently
+  - Tested independently
+  - Delivered as an MVP increment
+
+  DO NOT keep these sample tasks in the generated tasks.md file.
+  ============================================================================
+-->
+
+## Phase 1: Setup (Shared Infrastructure)
+
+**Purpose**: Bundle initialization and environment configuration
+
+- [ ] T001 Create project structure per implementation plan
+- [ ] T002 Initialize Databricks Asset Bundle with databricks.yml
+- [ ] T003 [P] Configure pyproject.toml with uv dependencies
+- [ ] T004 [P] Set up .databrickscfg with workspace credentials
+- [ ] T005 Verify databricks-connect session works locally
 
 ---
 
-## Phase 1: Bundle Setup & Environment Configuration
+## Phase 2: Foundational (Blocking Prerequisites)
 
-### Initialization
+**Purpose**: Core infrastructure that MUST be complete before ANY data requirement can be implemented
 
-- [ ] T001 [P1] Initialize Databricks Asset Bundle with `databricks bundle init`
-- [ ] T002 [P1] Create `.databrickscfg` with workspace credentials
-- [ ] T003 [P1] Configure `databricks.yml` with catalog, schema, and target settings
-- [ ] T004 [P1] Validate bundle configuration with `databricks bundle validate`
+**⚠️ CRITICAL**: No data requirement work can begin until this phase is complete
 
-### Local Development Environment
+Examples of foundational tasks (adjust based on your pipeline):
 
-- [ ] T005 [P1] Create Python virtual environment (`uv sync`)
-- [ ] T006 [P1] Install databricks-connect matching DBR version
-- [ ] T007 [P1] Configure VS Code settings for Databricks Connect
-- [ ] T008 [P1] Test local Spark session with `from databricks.connect import DatabricksSession`
+- [ ] T006 Create Unity Catalog schema structure (Bronze, Silver, Gold)
+- [ ] T007 [P] Create base DDL notebook in notebooks/_setup/create_tables.py
+- [ ] T008 [P] Implement shared validators in src/validators/checks.py
+- [ ] T009 [P] Create utility functions in src/utils/helpers.py
+- [ ] T010 Configure databricks.yml with multi-target deployment (dev/staging/prod)
+- [ ] T011 Set up test fixtures in fixtures/sample_data/
 
-### Repository Setup
-
-- [ ] T009 [P1] Create `.gitignore` for Databricks/Python artifacts
-- [ ] T010 [P1] Initialize docs/ directory structure
-- [ ] T011 [P1] Create README.md with project overview & setup instructions
-- [ ] T012 [P1] Set up GitHub Actions workflow template
-
-### Verification
-
-- [ ] T013 [P1] Run `databricks bundle validate` successfully
-- [ ] T014 [P1] Confirm Databricks Connect session works locally
-- [ ] T015 [P1] Verify all team members can connect to workspace
+**Checkpoint**: Foundation ready - data requirement implementation can now begin in parallel
 
 ---
 
-## Phase 2: Schema & Infrastructure
+## Phase 3: Data Requirement 1 - [Title] (Priority: P1) 🎯 MVP
 
-### Bronze Layer (Raw Data)
+**Goal**: [Brief description of what this data requirement delivers]
 
-- [ ] T101 [P1] Create setup notebook `notebooks/_setup/create_tables.py`
-- [ ] T102 [P1] Define Bronze schema DDL for each raw data table
-  - [ ] T102a: `raw_[source_1]` table definition
-  - [ ] T102b: `raw_[source_2]` table definition
-- [ ] T103 [P1] Create utility functions for schema management in `src/utilities/`
-- [ ] T104 [P1] Document table lineage in `docs/DATA_CATALOG.md`
+**Independent Test**: [How to verify this requirement works on its own - e.g., query Gold table, check row counts]
 
-### Silver Layer (Cleaned Data)
+### Tests for Data Requirement 1 (OPTIONAL - only if tests requested) ⚠️
 
-- [ ] T105 [P1] Define Silver schema DDL for transformed entities
-  - [ ] T105a: `transformed_[entity_1]` table definition
-  - [ ] T105b: `transformed_[entity_2]` table definition
-- [ ] T106 [P1] Create data quality validators in `src/validators/checks.py`
-- [ ] T107 [P1] Document transformation rules for each entity
+> **NOTE: Write these tests FIRST, ensure they FAIL before implementation**
 
-### Gold Layer (Business Data)
+- [ ] T012 [P] [DR1] Unit test for ingestion logic in tests/unit/test_ingest_source.py
+- [ ] T013 [P] [DR1] Integration test for pipeline in tests/integration/test_pipeline.py
 
-- [ ] T108 [P1] Define Gold schema DDL for business-ready tables
-  - [ ] T108a: `agg_[metric_1]` table definition
-  - [ ] T108b: `agg_[metric_2]` table definition
-- [ ] T109 [P1] Define feature definitions & business rules
-- [ ] T110 [P1] Create data dictionary with column descriptions
+### Implementation for Data Requirement 1
 
-### Test Data & Fixtures
+- [ ] T014 [P] [DR1] Create Bronze schema DDL for raw_[source] in notebooks/_setup/create_tables.py
+- [ ] T015 [P] [DR1] Create Silver schema DDL for transformed_[entity] in notebooks/_setup/create_tables.py
+- [ ] T016 [DR1] Implement ingest notebook in notebooks/ingest_[source].py
+- [ ] T017 [DR1] Implement transform notebook in notebooks/transform_[entity].py
+- [ ] T018 [DR1] Create transformation module in src/transformations/[entity].py
+- [ ] T019 [DR1] Add data quality validators for DR1 entities
+- [ ] T020 [DR1] Configure job definition in databricks.yml for DR1 pipeline
 
-- [ ] T111 [P2] Create sample CSV files in `fixtures/sample_data/`
-- [ ] T112 [P2] Create fixture loader utilities for pytest
-- [ ] T113 [P2] Document test data schemas
-
-### Documentation
-
-- [ ] T114 [P1] Create `ARCHITECTURE.md` with pipeline architecture diagram
-- [ ] T115 [P1] Create `docs/SCHEMA.md` with detailed table documentation
-- [ ] T116 [P1] Create `docs/DATA_LINEAGE.md` showing table dependencies
+**Checkpoint**: At this point, Data Requirement 1 should be fully functional and testable independently
 
 ---
 
-## Phase 3: Data Ingestion
+## Phase 4: Data Requirement 2 - [Title] (Priority: P2)
 
-### Ingest Notebooks
+**Goal**: [Brief description of what this data requirement delivers]
 
-- [ ] T201 [P1] Create `notebooks/ingest_[source_1].py`
-  - [ ] T201a: Implement source connection (JDBC, S3, API, etc.)
-  - [ ] T201b: Add data quality checks for null rates
-  - [ ] T201c: Write to Bronze `raw_[source_1]` table
-  - [ ] T201d: Add logging & error handling
+**Independent Test**: [How to verify this requirement works on its own]
 
-- [ ] T202 [P1] Create `notebooks/ingest_[source_2].py` (repeat pattern)
+### Tests for Data Requirement 2 (OPTIONAL - only if tests requested) ⚠️
 
-### Ingest Modules
+- [ ] T021 [P] [DR2] Unit test for transformation logic in tests/unit/test_transform_[entity].py
+- [ ] T022 [P] [DR2] Integration test for DR2 pipeline in tests/integration/test_[entity].py
 
-- [ ] T203 [P2] Create `src/ingest/[source_1].py` with reusable logic
-- [ ] T204 [P2] Create connector classes for each source type
-- [ ] T205 [P2] Implement retry logic for API calls
-- [ ] T206 [P2] Create custom exception classes
+### Implementation for Data Requirement 2
 
-### Unit Tests
+- [ ] T023 [P] [DR2] Create Bronze schema DDL for raw_[source2] in notebooks/_setup/create_tables.py
+- [ ] T024 [DR2] Implement ingest notebook in notebooks/ingest_[source2].py
+- [ ] T025 [DR2] Implement transform notebook in notebooks/transform_[entity2].py
+- [ ] T026 [DR2] Create transformation module in src/transformations/[entity2].py
+- [ ] T027 [DR2] Integrate with Data Requirement 1 components (if needed)
 
-- [ ] T207 [P1] Create `tests/unit/test_ingest.py`
-  - [ ] T207a: Test data frame creation
-  - [ ] T207b: Test null rate calculations
-  - [ ] T207c: Test schema validation
-  - [ ] T207d: Test error handling
-
-### Job Definition
-
-- [ ] T208 [P1] Update `resources/ingest.job.yml` with task definitions
-- [ ] T209 [P1] Configure retry policies & error handling
-- [ ] T210 [P1] Set up job scheduling (e.g., daily at 02:00 UTC)
-
-### Verification
-
-- [ ] T211 [P1] Run ingest notebooks manually in dev workspace
-- [ ] T212 [P1] Verify data in Bronze layer
-- [ ] T213 [P1] Check data quality metrics & logs
-- [ ] T214 [P2] Run `databricks bundle deploy -t dev` successfully
-- [ ] T215 [P2] Trigger job from bundle and verify execution
+**Checkpoint**: At this point, Data Requirements 1 AND 2 should both work independently
 
 ---
 
-## Phase 4: Data Transformations
+## Phase 5: Data Requirement 3 - [Title] (Priority: P3)
 
-### Transform Notebooks
+**Goal**: [Brief description of what this data requirement delivers]
 
-- [ ] T301 [P1] Create `notebooks/transform_[entity_1].py`
-  - [ ] T301a: Read from Bronze raw tables
-  - [ ] T301b: Implement deduplication logic
-  - [ ] T301c: Apply business rule transformations
-  - [ ] T301d: Add data quality validation
-  - [ ] T301e: Write to Silver tables
+**Independent Test**: [How to verify this requirement works on its own]
 
-- [ ] T302 [P1] Create `notebooks/transform_[entity_2].py` (repeat pattern)
+### Tests for Data Requirement 3 (OPTIONAL - only if tests requested) ⚠️
 
-### Transformation Modules
+- [ ] T028 [P] [DR3] Unit test for aggregation logic in tests/unit/test_output_[metric].py
+- [ ] T029 [P] [DR3] Integration test for Gold layer in tests/integration/test_gold.py
 
-- [ ] T303 [P2] Create `src/transformations/[entity_1].py`
-  - [ ] T303a: Extract business logic into reusable functions
-  - [ ] T303b: Implement type hints & docstrings
-  - [ ] T303c: Create test-friendly pure functions
+### Implementation for Data Requirement 3
 
-- [ ] T304 [P2] Create `src/transformations/[entity_2].py` (repeat pattern)
+- [ ] T030 [P] [DR3] Create Gold schema DDL for agg_[metric] in notebooks/_setup/create_tables.py
+- [ ] T031 [DR3] Implement output notebook in notebooks/output_[metric].py
+- [ ] T032 [DR3] Create aggregation module in src/output/aggregations.py
+- [ ] T033 [DR3] Add final data quality validators
 
-### Data Quality
-
-- [ ] T305 [P1] Create validators in `src/validators/[entity].py`
-  - [ ] T305a: Null rate checks
-  - [ ] T305b: Duplicate detection
-  - [ ] T305c: Schema validation
-  - [ ] T305d: Business rule validation
-
-- [ ] T306 [P1] Implement assertions in transformation notebooks
-- [ ] T307 [P2] Create data quality dashboard definition (optional)
-
-### Unit Tests
-
-- [ ] T308 [P1] Create `tests/unit/test_transformations.py`
-  - [ ] T308a: Test deduplication logic
-  - [ ] T308b: Test business rule transformations
-  - [ ] T308c: Test null handling
-  - [ ] T308d: Test edge cases
-
-- [ ] T309 [P1] Create `tests/unit/test_validators.py`
-  - [ ] T309a: Test null rate calculation
-  - [ ] T309b: Test schema validation
-  - [ ] T309c: Test custom validators
-
-### Integration Tests
-
-- [ ] T310 [P2] Create `tests/integration/test_transform.py`
-  - [ ] T310a: Test with real Databricks Connect
-  - [ ] T310b: Test end-to-end transformation pipeline
-  - [ ] T310c: Test with sample data fixtures
-
-### Optimization
-
-- [ ] T311 [P2] Profile transformation queries for performance
-- [ ] T312 [P2] Optimize partition strategy if needed
-- [ ] T313 [P2] Add caching for frequently accessed tables (optional)
+**Checkpoint**: All data requirements should now be independently functional
 
 ---
 
-## Phase 5: Output & Aggregation
-
-### Output Notebooks
-
-- [ ] T401 [P1] Create `notebooks/output_[metric_1].py`
-  - [ ] T401a: Read from Silver tables
-  - [ ] T401b: Implement aggregation logic
-  - [ ] T401c: Calculate business metrics
-  - [ ] T401d: Write to Gold tables
-
-- [ ] T402 [P1] Create `notebooks/output_[metric_2].py` (repeat pattern)
-
-### Output Modules
-
-- [ ] T403 [P2] Create `src/output/aggregations.py`
-- [ ] T404 [P2] Create feature engineering utilities
-
-### Data Quality & Validation
-
-- [ ] T405 [P1] Create final validators in `src/validators/final_checks.py`
-  - [ ] T405a: Aggregate total validation
-  - [ ] T405b: Metric range checks
-  - [ ] T405c: Time series continuity checks
-
-- [ ] T406 [P1] Implement assertions in output notebooks
-
-### Testing
-
-- [ ] T407 [P1] Create `tests/integration/test_output.py`
-- [ ] T408 [P2] Test aggregations match expected metrics
-
-### Job Definition
-
-- [ ] T409 [P1] Update `resources/pipeline.job.yml` with full task dependency chain
-- [ ] T410 [P1] Configure task dependencies (ingest → transform → output)
-- [ ] T411 [P1] Set up alerting for job failures
+[Add more data requirement phases as needed, following the same pattern]
 
 ---
 
-## Phase 6: Orchestration & Deployment
+## Phase N: Polish & Cross-Cutting Concerns
 
-### Job Configuration
+**Purpose**: Improvements that affect multiple data requirements
 
-- [ ] T501 [P1] Define complete workflow in `databricks.yml`
-  - [ ] T501a: Create job definitions for all tasks
-  - [ ] T501b: Configure task dependencies
-  - [ ] T501c: Set cluster specifications
-
-- [ ] T502 [P1] Configure multi-target deployment (dev/staging/prod)
-- [ ] T503 [P1] Set up environment variables per target
-
-### CI/CD Pipeline
-
-- [ ] T504 [P2] Create GitHub Actions workflow `.github/workflows/test.yml`
-  - [ ] T504a: Run unit tests on PR
-  - [ ] T504b: Run integration tests on main branch
-  - [ ] T504c: Generate coverage reports
-
-- [ ] T505 [P2] Create deployment workflow `.github/workflows/deploy.yml`
-  - [ ] T505a: Deploy to dev on merge to develop branch
-  - [ ] T505b: Deploy to staging/prod via manual workflow dispatch
-
-### Testing & Validation
-
-- [ ] T506 [P1] Run full test suite locally
-  - [ ] T506a: Unit tests
-  - [ ] T506b: Integration tests
-  - [ ] T506c: Coverage > 80%
-
-- [ ] T507 [P1] Validate bundle for all targets
-  - [ ] T507a: `databricks bundle validate -t dev`
-  - [ ] T507b: `databricks bundle validate -t staging`
-  - [ ] T507c: `databricks bundle validate -t prod`
-
-### Deployment
-
-- [ ] T508 [P1] Deploy to dev: `databricks bundle deploy -t dev`
-- [ ] T509 [P2] Deploy to staging: `databricks bundle deploy -t staging`
-- [ ] T510 [P2] Deploy to prod: `databricks bundle deploy -t prod`
-
-### Monitoring & Verification
-
-- [ ] T511 [P1] Run jobs in dev and verify output
-- [ ] T512 [P1] Check data quality metrics in all layers
-- [ ] T513 [P2] Monitor job performance & duration
-- [ ] T514 [P2] Set up alerting for job failures
+- [ ] TXXX [P] Documentation updates in docs/
+- [ ] TXXX Code cleanup and refactoring
+- [ ] TXXX Performance optimization across all pipeline stages
+- [ ] TXXX [P] Additional unit tests (if requested) in tests/unit/
+- [ ] TXXX Configure CI/CD in .github/workflows/
+- [ ] TXXX Run quickstart.md validation
 
 ---
 
-## Phase 7: Documentation & Polish
+## Dependencies & Execution Order
 
-### Code Documentation
+### Phase Dependencies
 
-- [ ] T601 [P1] Add docstrings to all functions in `src/`
-- [ ] T602 [P1] Create API documentation for reusable modules
-- [ ] T603 [P2] Generate coverage reports and publish
+- **Setup (Phase 1)**: No dependencies - can start immediately
+- **Foundational (Phase 2)**: Depends on Setup completion - BLOCKS all data requirements
+- **Data Requirements (Phase 3+)**: All depend on Foundational phase completion
+  - Data requirements can then proceed in parallel (if staffed)
+  - Or sequentially in priority order (P1 → P2 → P3)
+- **Polish (Final Phase)**: Depends on all desired data requirements being complete
 
-### User Documentation
+### Data Requirement Dependencies
 
-- [ ] T604 [P1] Update `README.md` with setup & usage instructions
-- [ ] T605 [P1] Create `docs/QUICKSTART.md` for new team members
-- [ ] T606 [P1] Create `docs/TROUBLESHOOTING.md` with common issues
-- [ ] T607 [P1] Document data lineage & table relationships
+- **Data Requirement 1 (P1)**: Can start after Foundational (Phase 2) - No dependencies on other requirements
+- **Data Requirement 2 (P2)**: Can start after Foundational (Phase 2) - May integrate with DR1 but should be independently testable
+- **Data Requirement 3 (P3)**: Can start after Foundational (Phase 2) - May integrate with DR1/DR2 but should be independently testable
 
-### Operational Documentation
+### Within Each Data Requirement
 
-- [ ] T608 [P2] Create `docs/OPERATIONS.md` with runbook
-  - [ ] T608a: How to run jobs manually
-  - [ ] T608b: How to debug failures
-  - [ ] T608c: How to handle data issues
-  - [ ] T608d: How to add new data sources
+- Tests (if included) MUST be written and FAIL before implementation
+- Schema DDL before notebooks
+- Ingest before transform
+- Transform before output
+- Core implementation before integration
+- Requirement complete before moving to next priority
 
-- [ ] T609 [P2] Create alert/escalation procedures
-- [ ] T610 [P2] Document disaster recovery procedures
+### Parallel Opportunities
 
-### Code Quality
-
-- [ ] T611 [P1] Run linter (ruff) on all Python code
-- [ ] T612 [P1] Format code with black
-- [ ] T613 [P1] Fix any type hints (mypy if applicable)
-
-### Final Sign-Off
-
-- [ ] T614 [P1] Code review with data architect
-- [ ] T615 [P1] Data quality validation review
-- [ ] T616 [P1] Performance & cost review
-- [ ] T617 [P1] Security review (credentials, access control)
-- [ ] T618 [P1] Business sign-off from data owner
+- All Setup tasks marked [P] can run in parallel
+- All Foundational tasks marked [P] can run in parallel (within Phase 2)
+- Once Foundational phase completes, all data requirements can start in parallel (if team capacity allows)
+- All tests for a requirement marked [P] can run in parallel
+- Schema DDL tasks within a requirement marked [P] can run in parallel
+- Different data requirements can be worked on in parallel by different team members
 
 ---
 
-## Summary by Priority
+## Parallel Example: Data Requirement 1
 
-### P1 (Must Have)
+```bash
+# Launch all tests for Data Requirement 1 together (if tests requested):
+Task: "Unit test for ingestion logic in tests/unit/test_ingest_source.py"
+Task: "Integration test for pipeline in tests/integration/test_pipeline.py"
 
-- Core setup & environment configuration (T001-T015)
-- Schema definitions for all layers (T101-T116)
-- Ingest implementation (T201-T215)
-- Transform implementation (T301-T310)
-- Output & aggregation (T401-T411)
-- Orchestration & deployment (T501-T518)
-- Documentation & sign-off (T601-T618)
-
-**Total P1 Tasks**: ~95 tasks
-
-### P2 (Should Have)
-
-- Modular code extraction (T203-T206, T303-T304)
-- Advanced testing & monitoring (T210, T214-T215, T310, T407-T408)
-- Performance optimization (T311-T313)
-- CI/CD pipeline setup (T504-T505)
-- Advanced documentation (T608-T610)
-- Code quality tools (T611-T613)
-
-**Total P2 Tasks**: ~30 tasks
+# Launch all schema DDL for Data Requirement 1 together:
+Task: "Create Bronze schema DDL for raw_[source] in notebooks/_setup/create_tables.py"
+Task: "Create Silver schema DDL for transformed_[entity] in notebooks/_setup/create_tables.py"
+```
 
 ---
 
-## Progress Tracking
+## Implementation Strategy
 
-| Phase | Status | Completion % |
-|-------|--------|--------------|
-| 1: Setup | [ ] | 0% |
-| 2: Schema | [ ] | 0% |
-| 3: Ingest | [ ] | 0% |
-| 4: Transform | [ ] | 0% |
-| 5: Output | [ ] | 0% |
-| 6: Orchestration | [ ] | 0% |
-| 7: Documentation | [ ] | 0% |
-| **Overall** | | **0%** |
+### MVP First (Data Requirement 1 Only)
+
+1. Complete Phase 1: Setup
+2. Complete Phase 2: Foundational (CRITICAL - blocks all requirements)
+3. Complete Phase 3: Data Requirement 1
+4. **STOP and VALIDATE**: Test Data Requirement 1 independently
+5. Deploy/demo if ready
+
+### Incremental Delivery
+
+1. Complete Setup + Foundational → Foundation ready
+2. Add Data Requirement 1 → Test independently → Deploy/Demo (MVP!)
+3. Add Data Requirement 2 → Test independently → Deploy/Demo
+4. Add Data Requirement 3 → Test independently → Deploy/Demo
+5. Each requirement adds value without breaking previous requirements
+
+### Parallel Team Strategy
+
+With multiple developers:
+
+1. Team completes Setup + Foundational together
+2. Once Foundational is done:
+   - Developer A: Data Requirement 1 (Bronze → Silver for source 1)
+   - Developer B: Data Requirement 2 (Bronze → Silver for source 2)
+   - Developer C: Data Requirement 3 (Silver → Gold aggregations)
+3. Requirements complete and integrate independently
 
 ---
 
 ## Notes
 
-- Update this file as tasks are completed
-- Mark P2 tasks for post-launch optimization
-- Prioritize P1 tasks for initial release
-- Schedule regular syncs to track progress
+- [P] tasks = different files, no dependencies
+- [Req] label maps task to specific data requirement for traceability
+- Each data requirement should be independently completable and testable
+- Verify tests fail before implementing
+- Commit after each task or logical group
+- Stop at any checkpoint to validate requirement independently
+- Avoid: vague tasks, same file conflicts, cross-requirement dependencies that break independence

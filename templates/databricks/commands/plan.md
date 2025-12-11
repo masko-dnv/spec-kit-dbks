@@ -1,17 +1,19 @@
 ---
-description: Create a comprehensive implementation plan for a Databricks data pipeline with project structure, phases, and technical details.
-handoffs: 
-  - label: Build Task List
+description: Execute the implementation planning workflow for a Databricks data pipeline using the plan template to generate design artifacts.
+handoffs:
+  - label: Create Tasks
     agent: speckit.tasks
-    prompt: Create a detailed task list and phases for this implementation plan. The pipeline is...
+    prompt: Break the plan into tasks
     send: true
-  - label: Clarify Architecture
-    agent: speckit.clarify
-    prompt: Help me clarify the data pipeline architecture and design decisions
-    send: true
+  - label: Create Checklist
+    agent: speckit.checklist
+    prompt: Create a checklist for the following domain...
 scripts:
-  sh: scripts/bash/create-new-feature.sh --json "{ARGS}"
-  ps: scripts/powershell/create-new-feature.ps1 -Json "{ARGS}"
+  sh: scripts/bash/setup-plan.sh --json
+  ps: scripts/powershell/setup-plan.ps1 -Json
+agent_scripts:
+  sh: scripts/bash/update-agent-context.sh __AGENT__
+  ps: scripts/powershell/update-agent-context.ps1 -AgentType __AGENT__
 ---
 
 ## User Input
@@ -22,228 +24,96 @@ $ARGUMENTS
 
 You **MUST** consider the user input before proceeding (if not empty).
 
-## Overview
+## Outline
 
-You are creating a **detailed implementation plan** for a Databricks data pipeline. This plan translates the data specification into concrete technical architecture, project structure, technology choices, and phase-by-phase implementation strategy.
+1. **Setup**: Run `{SCRIPT}` from repo root and parse JSON for FEATURE_SPEC, IMPL_PLAN, SPECS_DIR, BRANCH. For single quotes in args like "I'm Groot", use escape syntax: e.g 'I'\''m Groot' (or double-quote if possible: "I'm Groot").
 
----
+2. **Load context**: Read FEATURE_SPEC and `/memory/constitution.md`. Load IMPL_PLAN template (already copied).
 
-## Your Task
+3. **Execute plan workflow**: Follow the structure in IMPL_PLAN template to:
+   - Fill Technical Context (mark unknowns as "NEEDS CLARIFICATION")
+   - Fill Constitution Check section from constitution
+   - Evaluate gates (ERROR if violations unjustified)
+   - Phase 0: Generate research.md (resolve all NEEDS CLARIFICATION)
+   - Phase 1: Generate data-model.md, contracts/, quickstart.md
+   - Phase 1: Update agent context by running the agent script
+   - Re-evaluate Constitution Check post-design
 
-Create a comprehensive implementation plan that includes:
+4. **Stop and report**: Command ends after Phase 1 planning. Report branch, IMPL_PLAN path, and generated artifacts.
 
-### 1. **Technical Context**
-- Python version and Databricks Runtime (DBR) requirements
-- Compute type (Job Clusters, All-Purpose, Serverless)
-- Storage backend (Delta Lake on Unity Catalog)
-- Testing framework (pytest with databricks-connect)
-- Dependency management (uv package manager)
-- Multi-environment targets (dev, staging, prod)
+## Phases
 
-### 2. **Project Structure**
-Organize the project following best practices:
+### Phase 0: Outline & Research
 
-```
-[project-name]/
-├── .github/                    # CI/CD workflows
-├── .vscode/                    # VS Code settings
-├── docs/                       # Documentation
-├── fixtures/sample_data/       # Test data
-├── notebooks/                  # Databricks notebooks
-│   ├── _setup/                 # Schema setup
-│   ├── ingest_*.py
-│   ├── transform_*.py
-│   └── output_*.py
-├── resources/                  # Databricks Asset Bundle configs
-├── scratch/                    # Exploratory notebooks
-├── src/                        # Reusable Python modules
-├── tests/
-│   ├── unit/
-│   └── integration/
-├── databricks.yml
-├── pyproject.toml
-└── README.md
-```
+1. **Extract unknowns from Technical Context** above:
+   - For each NEEDS CLARIFICATION → research task
+   - For each Databricks dependency (DBR version, Unity Catalog, compute type) → best practices task
+   - For each integration (source systems, Delta Lake, downstream consumers) → patterns task
 
-- Explain the purpose of each directory
-- Describe how code is organized (src-layout for testability)
-- Explain separation of concerns (notebooks for orchestration, src/ for logic)
+2. **Generate and dispatch research agents**:
 
-### 3. **Key Components**
+   ```text
+   For each unknown in Technical Context:
+     Task: "Research {unknown} for {pipeline context}"
+   For each technology choice:
+     Task: "Find best practices for {tech} in Databricks/PySpark"
+   ```
 
-#### Databricks Asset Bundle Configuration (`databricks.yml`)
-- Define job definitions with proper task dependencies
-- Configure cluster specs for each phase (ingest, transform, output)
-- Set up multi-target deployment (dev/staging/prod)
-- Include scheduling and timeout settings
-- Document parameterization for different environments
+3. **Consolidate findings** in `research.md` using format:
+   - Decision: [what was chosen]
+   - Rationale: [why chosen]
+   - Alternatives considered: [what else evaluated]
 
-#### Python Dependencies (`pyproject.toml`)
-- Production dependencies (minimal, deployed to clusters)
-- Development dependencies (databricks-connect, pytest, black, ruff)
-- Build system configuration (hatchling)
-- Test and lint configurations
-- Databricks builtins for Ruff configuration
+**Output**: research.md with all NEEDS CLARIFICATION resolved
 
-#### Notebook Structure
-- Provide example code for ingestion, transformation, and output notebooks
-- Show how to use Databricks Connect for local development
-- Demonstrate data quality validation patterns
-- Include error handling and logging
+### Phase 1: Design & Contracts
 
-#### Testing Strategy
-- Unit tests (no Databricks connection required)
-- Integration tests (with databricks-connect)
-- Fixtures for test data
-- Coverage expectations (> 80%)
+**Prerequisites:** `research.md` complete
 
-### 4. **Implementation Phases**
+1. **Extract entities from feature spec** → `data-model.md`:
+   - Entity name, fields, relationships
+   - Bronze/Silver/Gold layer mappings
+   - Delta Lake schema definitions
+   - Validation rules from requirements
+   - State transitions if applicable
 
-Break down implementation into clear phases with deliverables:
+2. **Generate pipeline contracts** from functional requirements:
+   - For each data source → ingestion contract (schema, frequency, SLA)
+   - For each transformation → input/output schema contract
+   - For each output → delivery contract (format, destination, freshness)
+   - Output schemas to `/contracts/`
 
-- **Phase 1**: Bundle Setup & Environment (local dev environment, Databricks connection)
-- **Phase 2**: Schema & Infrastructure (Bronze, Silver, Gold layers, DDL)
-- **Phase 3**: Data Ingestion (ingest notebooks, unit tests, jobs)
-- **Phase 4**: Transformations (transform notebooks, business logic, validators)
-- **Phase 5**: Output & Aggregation (aggregations, metrics, final tables)
-- **Phase 6**: Orchestration & CI/CD (job workflows, GitHub Actions)
-- **Phase 7**: Documentation & Polish (code docs, runbooks, sign-off)
+3. **Define project structure**:
+   ```
+   [project-name]/
+   ├── .github/                    # CI/CD workflows
+   ├── .vscode/                    # VS Code settings
+   ├── notebooks/                  # Databricks notebooks
+   │   ├── _setup/                 # Schema setup DDL
+   │   ├── ingest_*.py             # Bronze layer
+   │   ├── transform_*.py          # Silver layer
+   │   └── output_*.py             # Gold layer
+   ├── src/                        # Reusable Python modules
+   ├── tests/
+   │   ├── unit/                   # No Databricks connection
+   │   └── integration/            # With databricks-connect
+   ├── fixtures/sample_data/       # Test data
+   ├── databricks.yml              # Asset Bundle config
+   └── pyproject.toml              # Dependencies (uv)
+   ```
 
-For each phase:
-- List specific tasks and deliverables
-- Estimate effort (days/weeks)
-- Identify dependencies on previous phases
-- Define success criteria
+4. **Agent context update**:
+   - Run `{AGENT_SCRIPT}`
+   - These scripts detect which AI agent is in use
+   - Update the appropriate agent-specific context file
+   - Add only new technology from current plan (PySpark, Delta Lake, Unity Catalog)
+   - Preserve manual additions between markers
 
-### 5. **Success Metrics**
+**Output**: data-model.md, /contracts/*, quickstart.md, agent-specific file
 
-Define how you'll measure the pipeline's success:
-- Data freshness: Time from source update to Gold table availability
-- Data quality: Validation pass rate, error detection
-- Reliability: Job success rate, SLA compliance
-- Performance: Query speed, processing time
-- Testing: Code coverage, test pass rate
-- Documentation: 100% code coverage
+## Key rules
 
-### 6. **Known Constraints & Assumptions**
-
-List any limitations or assumptions:
-- Databricks Runtime version and compatibility
-- Unity Catalog prerequisites
-- Cluster resource availability
-- Source system stability
-- Acceptable latency thresholds
-
----
-
-## Output Format
-
-Structure your plan using this template:
-
-```markdown
-# Implementation Plan: [PIPELINE_NAME]
-
-## Technical Context
-[DBR version, Python, compute, storage, testing, dependencies]
-
-## Project Structure
-[Directory layout with explanations]
-
-## Detailed Component Design
-### 1. Databricks Asset Bundle Configuration
-[databricks.yml structure and configuration]
-
-### 2. Python Dependencies
-[pyproject.toml with prod and dev deps]
-
-### 3. Notebook Structure
-[Code examples for ingest, transform, output]
-
-### 4. Testing Strategy
-[Unit and integration test patterns]
-
-## Implementation Phases
-[Phase 1 through Phase 7 with tasks and deliverables]
-
-## Success Metrics
-[Measurable criteria for success]
-
-## Next Steps
-[Immediate action items]
-
-## References
-[Links to documentation]
-```
-
----
-
-## Key Considerations
-
-### Environment Management
-- Document how to set up `.databrickscfg` with workspace credentials
-- Explain how databricks-connect enables local development
-- Show how environments are parameterized in `databricks.yml`
-
-### Code Organization
-- Place business logic in `src/` for testability
-- Use notebooks for orchestration and Spark session management
-- Separate concerns: transformations, validators, utilities
-
-### Testing Approach
-- Unit tests don't require Databricks connection
-- Integration tests use databricks-connect and real data
-- Fixture data stored in `fixtures/sample_data/`
-- Test fixtures use pytest markers for organization
-
-### Deployment Strategy
-- Document multi-target support (dev/staging/prod)
-- Explain how to validate bundles before deployment
-- Show deployment commands and verification steps
-- Include rollback procedures
-
-### Performance & Cost Optimization
-- Suggest cluster sizing based on data volumes
-- Recommend partitioning and caching strategies
-- Discuss Z-ordering for columnar optimization
-- Mention cost monitoring and optimization opportunities
-
----
-
-## Example Section: Notebook Structure
-
-Here's what a well-structured ingest notebook looks like:
-
-```python
-# Databricks notebook source
-from pyspark.sql.functions import current_timestamp, lit
-
-# Read from source
-df = spark.read.format("jdbc").load(...)
-
-# Add metadata
-df = df.withColumn("ingested_at", current_timestamp()) \
-       .withColumn("source_system", lit("[SOURCE_NAME]"))
-
-# Validate quality
-assert df.count() > 0, "No data from source"
-
-# Write to Bronze
-df.write.format("delta").mode("append").saveAsTable("[catalog].[schema].raw_[entity]")
-```
-
----
-
-## Tips for Success
-
-- **Be specific about resources**: Include exact cluster node types and worker counts
-- **Document environment differences**: Show how parameters change per target
-- **Provide code examples**: Help teams understand the patterns to follow
-- **Define clear phases**: Make implementation manageable with clear milestones
-- **Plan for testing**: Include testing strategy from the beginning
-- **Consider operations**: Plan for monitoring, alerting, and troubleshooting
-
----
-
-## Next Step
-
-After completing the implementation plan, use the "Build Task List" handoff to create a detailed checklist of all tasks organized by phase.
+- Use absolute paths
+- ERROR on gate failures or unresolved clarifications
+- Mark unknowns as "NEEDS CLARIFICATION" (DBR version, compute type, Unity Catalog schema)
+- Databricks-specific: validate Unity Catalog access, cluster permissions, and Delta Lake compatibility

@@ -1,9 +1,8 @@
 ---
-description: Analyze and validate the completeness and consistency of your Databricks data pipeline specification and implementation.
-handoffs: []
+description: Perform a non-destructive cross-artifact consistency and quality analysis across spec.md, plan.md, and tasks.md for Databricks data pipelines.
 scripts:
-  sh: scripts/bash/create-new-feature.sh --json "{ARGS}"
-  ps: scripts/powershell/create-new-feature.ps1 -Json "{ARGS}"
+  sh: scripts/bash/check-prerequisites.sh --json --require-tasks --include-tasks
+  ps: scripts/powershell/check-prerequisites.ps1 -Json -RequireTasks -IncludeTasks
 ---
 
 ## User Input
@@ -12,292 +11,215 @@ scripts:
 $ARGUMENTS
 ```
 
-## Overview
+You **MUST** consider the user input before proceeding (if not empty).
 
-You are performing a **completeness and consistency analysis** of a Databricks data pipeline. Verify that the specification, plan, and implementation are coherent, complete, and free of contradictions.
+## Goal
 
----
+Identify inconsistencies, duplications, ambiguities, and underspecified items across the three core artifacts (`spec.md`, `plan.md`, `tasks.md`) before implementation. This command MUST run only after `/speckit.tasks` has successfully produced a complete `tasks.md`. Analysis focuses on Databricks data pipeline concerns: medallion architecture consistency, data lineage validation, schema coherence, and PySpark/DLT alignment.
 
-## Analysis Checklist
+## Operating Constraints
 
-### 1. **Specification Completeness**
+**STRICTLY READ-ONLY**: Do **not** modify any files. Output a structured analysis report. Offer an optional remediation plan (user must explicitly approve before any follow-up editing commands would be invoked manually).
 
-Verify the specification document includes all necessary sections:
+**Constitution Authority**: The project constitution (`/memory/constitution.md`) is **non-negotiable** within this analysis scope. Constitution conflicts are automatically CRITICAL and require adjustment of the spec, plan, or tasks—not dilution, reinterpretation, or silent ignoring of the principle. If a principle itself needs to change, that must occur in a separate, explicit constitution update outside `/speckit.analyze`.
 
-```markdown
-## Specification Completeness
+## Execution Steps
 
-- [ ] Pipeline Overview (description, objectives, schedule)
-- [ ] All Data Sources documented (systems, schemas, volumes)
-- [ ] All Pipeline Stages defined (Ingest, Transform, Output)
-- [ ] Data Quality Requirements specified (thresholds, validation rules)
-- [ ] Deployment Environments described (dev, staging, prod)
-- [ ] Dependencies & Integrations documented
-- [ ] Acceptance Scenarios for each stage
-- [ ] Known constraints and assumptions listed
-- [ ] Sign-off section for stakeholders
+### 1. Initialize Analysis Context
 
-**Missing Sections**: [List any missing parts]
-```
+Run `{SCRIPT}` once from repo root and parse JSON for FEATURE_DIR and AVAILABLE_DOCS. Derive absolute paths:
 
-### 2. **Plan-to-Specification Alignment**
+- SPEC = FEATURE_DIR/spec.md
+- PLAN = FEATURE_DIR/plan.md
+- TASKS = FEATURE_DIR/tasks.md
 
-Verify the implementation plan matches the specification:
+Abort with an error message if any required file is missing (instruct the user to run missing prerequisite command).
+For single quotes in args like "I'm Groot", use escape syntax: e.g 'I'\''m Groot' (or double-quote if possible: "I'm Groot").
 
-```markdown
-## Specification-Plan Alignment
+### 2. Load Artifacts (Progressive Disclosure)
 
-- [ ] All sources in spec have corresponding ingest notebooks in plan
-- [ ] All transformations in spec have corresponding notebooks in plan
-- [ ] All output metrics in spec have corresponding aggregations in plan
-- [ ] Data quality checks in spec are implemented in plan
-- [ ] DLB version and compute types are specified in plan
-- [ ] Testing strategy aligns with spec requirements
-- [ ] Timeline estimates are realistic for scope
-- [ ] Resource requirements match specification complexity
+Load only the minimal necessary context from each artifact:
 
-**Misalignments Found**: [List any discrepancies]
-```
+**From spec.md:**
 
-### 3. **Data Lineage Validation**
+- Pipeline Overview (description, objectives, schedule)
+- Data Sources (systems, schemas, Unity Catalog volumes)
+- Pipeline Stages (Bronze/Silver/Gold layers)
+- Data Quality Requirements (thresholds, validation rules)
+- Non-Functional Requirements (latency SLAs, cost constraints)
+- Acceptance Scenarios
 
-Verify data flows consistently from source to output:
+**From plan.md:**
 
-```markdown
-## Data Lineage Validation
+- Architecture/stack choices (DLT vs notebooks, streaming vs batch)
+- Medallion layer definitions
+- Compute configuration (cluster types, Databricks Connect settings)
+- Phases and technical constraints
+- `uv` dependency management approach
 
-- [ ] Every source table in spec appears in Bronze layer
-- [ ] Every Bronze table has a corresponding Silver transformation
-- [ ] Every Silver table contributes to Gold aggregations
-- [ ] All Gold tables are consumed by documented downstream systems
-- [ ] No tables are created but never used
-- [ ] No required transformations are missing
-- [ ] Join/merge operations are documented
-- [ ] Data filters are explained (why drop certain records?)
+**From tasks.md:**
 
-**Lineage Issues**: [List any breaks in flow]
-```
+- Task IDs
+- Descriptions
+- Phase grouping
+- Parallel markers [P]
+- Referenced file paths (notebooks, modules, configs)
 
-### 4. **Schema Consistency**
+**From constitution:**
 
-Verify schema definitions are consistent across layers:
+- Load `/memory/constitution.md` for principle validation
 
-```markdown
-## Schema Consistency
+### 3. Build Semantic Models
 
-- [ ] Bronze table columns match source data schema
-- [ ] Silver table deduplication keys are correctly defined
-- [ ] Primary keys are consistent across related tables
-- [ ] Foreign key relationships are documented
-- [ ] Data types are consistent (e.g., customer_id is always STRING or always INT)
-- [ ] Nullable constraints are explicitly defined
-- [ ] Column names follow consistent naming convention
-- [ ] No duplicate or conflicting column definitions
+Create internal representations (do not include raw artifacts in output):
 
-**Schema Issues**: [List inconsistencies]
-```
+- **Data source inventory**: Each source system with catalog/schema/table paths and ingestion method
+- **Medallion layer mapping**: Bronze → Silver → Gold transformations with table lineage
+- **Schema registry**: Column definitions, data types, and consistency across layers
+- **Task coverage mapping**: Map each task to one or more requirements or pipeline stages (inference by keyword / explicit reference patterns like IDs or key phrases)
+- **Constitution rule set**: Extract principle names and MUST/SHOULD normative statements
 
-### 5. **Task-to-Plan Alignment**
+### 4. Detection Passes (Token-Efficient Analysis)
 
-Verify task list matches implementation plan:
+Focus on high-signal findings. Limit to 50 findings total; aggregate remainder in overflow summary.
 
-```markdown
-## Task-Plan Alignment
+#### A. Data Lineage Validation
 
-- [ ] Every phase in plan corresponds to a phase in task list
-- [ ] Task descriptions are specific and actionable
-- [ ] Tasks are appropriately sized (4-8 hours each)
-- [ ] Task dependencies are documented and correct
-- [ ] P1/P2 priorities align with phase importance
-- [ ] Estimated effort sums to reasonable timeline
-- [ ] No gaps between plan and tasks
-- [ ] No duplicate tasks
+- Every source table in spec appears in Bronze layer
+- Every Bronze table has a corresponding Silver transformation
+- Every Silver table contributes to Gold aggregations
+- No tables created but never consumed downstream
+- Join/merge operations documented with keys specified
 
-**Task-Plan Issues**: [List discrepancies]
-```
+#### B. Schema Consistency
 
-### 6. **Testing Coverage**
+- Bronze columns match source data schema
+- Primary/foreign keys consistent across related tables
+- Data types consistent (e.g., `customer_id` is always STRING or always LONG)
+- Column naming conventions followed across layers
+- Nullable constraints explicitly defined
 
-Verify testing strategy covers all components:
+#### C. Ambiguity Detection
 
-```markdown
-## Testing Coverage
+- Flag vague adjectives (fast, scalable, real-time) lacking measurable criteria
+- Flag unresolved placeholders (TODO, TKTK, ???, `<placeholder>`, etc.)
+- Flag undefined thresholds for data quality checks
 
-- [ ] Unit tests for each transformation function
-- [ ] Unit tests for data quality validators
-- [ ] Integration tests for each notebook
-- [ ] End-to-end tests for full pipeline
-- [ ] Edge case tests (nulls, empty input, duplicates)
-- [ ] Error handling tests (source failures, bad data)
-- [ ] Performance tests for large data volumes
-- [ ] Test fixtures for sample data
+#### D. Underspecification
 
-**Testing Gaps**: [List uncovered scenarios]
-```
+- Requirements with verbs but missing object or measurable outcome
+- Pipeline stages missing acceptance criteria alignment
+- Tasks referencing notebooks or modules not defined in spec/plan
+- Missing partition strategies for large tables
+- Missing error handling for source failures
 
-### 7. **Quality Requirements Completeness**
+#### E. Constitution Alignment
 
-Verify all quality checks are specified and measurable:
+- Any requirement or plan element conflicting with a MUST principle
+- Missing mandated sections or quality gates from constitution
 
-```markdown
-## Quality Requirements
+#### F. Coverage Gaps
 
-- [ ] Each critical column has a null rate threshold
-- [ ] Duplicate detection logic is defined
-- [ ] Aggregation accuracy tolerance is specified (e.g., < 0.1% variance)
-- [ ] Data freshness SLA is documented
-- [ ] Validation rules are testable
-- [ ] Alert thresholds are defined
-- [ ] Quality checks are automated (not manual)
+- Requirements with zero associated tasks
+- Tasks with no mapped requirement/pipeline stage
+- Non-functional requirements not reflected in tasks (e.g., latency SLAs, cost limits)
+- Missing tests for transformation logic or data quality validators
 
-**Quality Gaps**: [List undefined thresholds]
-```
+#### G. Inconsistency
 
-### 8. **Performance & Resource Alignment**
+- Terminology drift (same concept named differently across files)
+- Data entities referenced in plan but absent in spec (or vice versa)
+- Task ordering contradictions (e.g., Gold layer tasks before Silver setup without dependency note)
+- Conflicting requirements (e.g., one requires DLT while other specifies classic notebooks)
+- Cluster/compute configuration mismatches between spec and plan
 
-Verify performance requirements match resource allocation:
+### 5. Severity Assignment
 
-```markdown
-## Performance-Resource Alignment
+Use this heuristic to prioritize findings:
 
-- [ ] Cluster size is appropriate for data volume
-- [ ] Partition strategy matches query patterns
-- [ ] Caching strategy aligns with data access
-- [ ] Job timeouts are realistic for data volume
-- [ ] SLA latency matches cluster performance
-- [ ] Cost estimates are within budget
-- [ ] No unnecessarily large clusters for small data
+- **CRITICAL**: Violates constitution MUST, missing core spec artifact, broken data lineage (orphan tables), or requirement with zero coverage that blocks baseline functionality
+- **HIGH**: Duplicate or conflicting requirement, schema inconsistency across layers, ambiguous SLA/performance attribute, untestable acceptance criterion
+- **MEDIUM**: Terminology drift, missing non-functional task coverage, underspecified edge case, missing partition strategy
+- **LOW**: Style/wording improvements, minor redundancy not affecting execution order, documentation gaps
 
-**Performance Issues**: [List misalignments]
-```
+### 6. Produce Compact Analysis Report
 
-### 9. **Documentation Completeness**
+Output a Markdown report (no file writes) with the following structure:
 
-Verify all documentation is present:
+## Pipeline Analysis Report
 
-```markdown
-## Documentation Completeness
+| ID | Category | Severity | Location(s) | Summary | Recommendation |
+|----|----------|----------|-------------|---------|----------------|
+| L1 | Lineage | CRITICAL | spec.md:L45, plan.md:L120 | Bronze table `raw_orders` has no Silver consumer | Add Silver transformation or remove from spec |
+| S1 | Schema | HIGH | spec.md:L80, tasks.md:L55 | `customer_id` typed as STRING in spec, LONG in tasks | Align to single type |
 
-- [ ] README with setup and usage instructions
-- [ ] Architecture documentation
-- [ ] Data lineage diagram or description
-- [ ] Table schema documentation
-- [ ] Transformation logic explanations
-- [ ] Testing documentation
-- [ ] Operations runbook
-- [ ] Troubleshooting guide
-- [ ] API/connection documentation for sources
+(Add one row per finding; generate stable IDs prefixed by category initial: L=Lineage, S=Schema, A=Ambiguity, U=Underspec, C=Constitution, G=Gap, I=Inconsistency.)
 
-**Missing Documentation**: [List undocumented areas]
-```
+**Medallion Coverage Table:**
 
-### 10. **Deployment & Operations Readiness**
+| Layer | Table | Source/Upstream | Has Transformation? | Has Tests? | Notes |
+|-------|-------|-----------------|---------------------|------------|-------|
+| Bronze | raw_orders | source_system_a | Yes | No | Missing unit tests |
 
-Verify production deployment is fully planned:
+**Coverage Summary Table:**
 
-```markdown
-## Deployment & Operations Readiness
+| Requirement Key | Has Task? | Task IDs | Notes |
+|-----------------|-----------|----------|-------|
 
-- [ ] databricks.yml is fully configured
-- [ ] Multi-environment configuration is complete (dev/staging/prod)
-- [ ] Job definitions have all required parameters
-- [ ] Monitoring & alerting is configured
-- [ ] Disaster recovery plan exists
-- [ ] Rollback procedures are documented
-- [ ] On-call procedures are defined
-- [ ] Escalation contacts are documented
+**Constitution Alignment Issues:** (if any)
 
-**Deployment Gaps**: [List missing operational details]
-```
+**Unmapped Tasks:** (if any)
 
----
+**Metrics:**
 
-## Cross-Document Consistency Checks
+- Total Data Sources
+- Total Tables (Bronze/Silver/Gold)
+- Total Requirements
+- Total Tasks
+- Coverage % (requirements with >=1 task)
+- Lineage Completeness % (tables with upstream and downstream)
+- Ambiguity Count
+- Schema Issue Count
+- Critical Issues Count
 
-### Terminology Consistency
-- Are entity names consistent across spec, plan, and tasks?
-- Are column names spelled the same way everywhere?
-- Are acronyms defined and used consistently?
+### 7. Provide Next Actions
 
-**Inconsistencies**: [List any terminology mismatches]
+At end of report, output a concise Next Actions block:
 
-### Timeline Alignment
-- Do task estimates sum to planned phases?
-- Are there unrealistic compression factors?
-- Is slack time built in for unknowns?
+- If CRITICAL issues exist: Recommend resolving before `/speckit.implement`
+- If only LOW/MEDIUM: User may proceed, but provide improvement suggestions
+- Provide explicit command suggestions: e.g., "Run /speckit.specify to add missing Silver transformation", "Run /speckit.plan to define partition strategy", "Manually edit tasks.md to add coverage for 'data-quality-monitoring'"
 
-**Timeline Issues**: [List any issues]
+### 8. Offer Remediation
 
-### Responsibility Clarity
-- Is it clear who owns each component?
-- Are dependencies between teams documented?
-- Are handoff points clear?
+Ask the user: "Would you like me to suggest concrete remediation edits for the top N issues?" (Do NOT apply them automatically.)
 
-**Clarity Issues**: [List unclear responsibilities]
+## Operating Principles
 
----
+### Context Efficiency
 
-## Issue Categorization
+- **Minimal high-signal tokens**: Focus on actionable findings, not exhaustive documentation
+- **Progressive disclosure**: Load artifacts incrementally; don't dump all content into analysis
+- **Token-efficient output**: Limit findings table to 50 rows; summarize overflow
+- **Deterministic results**: Rerunning without changes should produce consistent IDs and counts
 
-Categorize findings:
+### Analysis Guidelines
 
-```markdown
-## Issues Found
+- **NEVER modify files** (this is read-only analysis)
+- **NEVER hallucinate missing sections** (if absent, report them accurately)
+- **Prioritize constitution violations** (these are always CRITICAL)
+- **Prioritize data lineage breaks** (orphan tables are CRITICAL for pipelines)
+- **Use examples over exhaustive rules** (cite specific instances, not generic patterns)
+- **Report zero issues gracefully** (emit success report with coverage statistics)
 
-### Critical (Blocks Implementation)
-1. [Issue]: [Impact]
-2. [Issue]: [Impact]
+### Databricks-Specific Checks
 
-### Important (Should Fix Before Production)
-1. [Issue]: [Workaround]
-2. [Issue]: [Workaround]
+- Validate Unity Catalog three-level namespace usage (catalog.schema.table)
+- Verify DLT expectations align with spec data quality requirements
+- Check compute configuration matches workload (streaming vs batch)
+- Ensure `uv` dependencies in `pyproject.toml` support specified PySpark version
+- Validate Databricks Connect configuration if local development specified
 
-### Nice-to-Have (Post-Launch Improvements)
-1. [Issue]: [Rationale]
-2. [Issue]: [Rationale]
-```
+## Context
 
----
-
-## Recommendations
-
-For each issue found:
-
-1. **Recommend a fix**: How to resolve the inconsistency
-2. **Estimate effort**: How long to implement fix
-3. **Set priority**: Critical, Important, Nice-to-Have
-4. **Assign owner**: Who should handle the fix
-
----
-
-## Sign-Off
-
-```markdown
-## Analysis Sign-Off
-
-| Check | Status | Comments |
-|-------|--------|----------|
-| Specification Complete | [ ] Pass / [ ] Needs Work | |
-| Plan Aligns with Spec | [ ] Pass / [ ] Needs Work | |
-| Data Lineage Valid | [ ] Pass / [ ] Needs Work | |
-| Schema Consistent | [ ] Pass / [ ] Needs Work | |
-| Testing Adequate | [ ] Pass / [ ] Needs Work | |
-| Documentation Complete | [ ] Pass / [ ] Needs Work | |
-| Deployment Ready | [ ] Pass / [ ] Needs Work | |
-
-**Overall Status**: [ ] Ready for Implementation / [ ] Needs Refinement
-
-**Prepared By**: [Name]  
-**Date**: [Date]
-```
-
----
-
-## Next Steps
-
-1. Fix critical issues before implementation starts
-2. Schedule important issues for early phases
-3. Add nice-to-have improvements to backlog
-4. Review with team to get alignment
-5. Update spec/plan based on feedback
-6. Re-analyze if significant changes made
+{ARGS}
